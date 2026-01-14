@@ -99,19 +99,51 @@ public class Render : RenderWindow
         return o;
     }
 
+    private float fTheta = 0f;
     public bool OnUpdate()
     {
         Clear(Color.Black);
+
+        Mat4 matRotZ = new Mat4();
+        Mat4 matRotX = new Mat4();
+        fTheta += 0.0008f ;
+
+        
+        // Rotacionar eixo Z
+        matRotZ.m[0][0] = MathF.Cos(fTheta);
+        matRotZ.m[0][1] = MathF.Sin(fTheta);
+        matRotZ.m[1][0] = -MathF.Sin(fTheta);
+        matRotZ.m[1][1] = MathF.Cos(fTheta);
+        matRotZ.m[2][2] = 1f;
+        matRotZ.m[3][3] = 1f;
+        
+        //Rotacionar eixo X
+        matRotX.m[0][0] = 1f;
+        matRotX.m[1][1] = MathF.Cos(fTheta*0.5f);
+        matRotX.m[1][2] = MathF.Sin(fTheta*0.5f);
+        matRotX.m[2][1] = -MathF.Sin(fTheta*0.5f);
+        matRotX.m[2][2] = MathF.Cos(fTheta*0.5f);
+        matRotX.m[3][3] = 1f;
     
         for (int i = 0; i < Cube.Triangles.Count; i++)
         {
             Triangle tri = Cube.Triangles[i];
             Triangle projected = new Triangle();
-            Triangle translated = new Triangle();
+            Triangle triRotatedZ = new Triangle();
+            Triangle triRotatedZx = new Triangle();
             
-            translated.p[0] = new Vector3(tri.p[0].X, tri.p[0].Y, tri.p[0].Z + 3.0f);
-            translated.p[1] = new Vector3(tri.p[1].X, tri.p[1].Y, tri.p[1].Z + 3.0f);
-            translated.p[2] = new Vector3(tri.p[2].X, tri.p[2].Y, tri.p[2].Z + 3.0f);
+            triRotatedZ.p[0] = MultiplyMatrixVector(tri.p[0], ref matRotZ);
+            triRotatedZ.p[1] = MultiplyMatrixVector(tri.p[1], ref matRotZ);
+            triRotatedZ.p[2] = MultiplyMatrixVector(tri.p[2], ref matRotZ);
+            
+            triRotatedZx.p[0] = MultiplyMatrixVector(triRotatedZ.p[0], ref matRotX);
+            triRotatedZx.p[1] = MultiplyMatrixVector(triRotatedZ.p[1], ref matRotX);
+            triRotatedZx.p[2] = MultiplyMatrixVector(triRotatedZ.p[2], ref matRotX);
+            
+            Triangle translated = new Triangle();
+            translated.p[0] = new Vector3(triRotatedZx.p[0].X, triRotatedZx.p[0].Y, triRotatedZx.p[0].Z + 3.0f);
+            translated.p[1] = new Vector3(triRotatedZx.p[1].X, triRotatedZx.p[1].Y, triRotatedZx.p[1].Z + 3.0f);
+            translated.p[2] = new Vector3(triRotatedZx.p[2].X, triRotatedZx.p[2].Y, triRotatedZx.p[2].Z + 3.0f);
             
             projected.p[0] = MultiplyMatrixVector(translated.p[0], ref Projection);
             projected.p[1] = MultiplyMatrixVector(translated.p[1], ref Projection);
@@ -128,7 +160,7 @@ public class Render : RenderWindow
     {
         float offsetX = Size.X / 2f;
         float offsetY = Size.Y / 2f;
-        float scale = 500f;
+        float scale = 300f;
     
         Vector2f p0 = new Vector2f(
             tri.p[0].X * scale + offsetX, 
@@ -149,7 +181,7 @@ public class Render : RenderWindow
         triangle.SetPoint(2, p2);
         triangle.FillColor = Color.Transparent;
         triangle.OutlineColor = Color.White;
-        triangle.OutlineThickness = 1f;
+        triangle.OutlineThickness = 1.5f;
     
         Draw(triangle);
     }
