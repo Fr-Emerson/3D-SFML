@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SFML.Graphics;
 
 namespace _3D_SFML.models;
 public struct Vector3(float x, float y, float z)
@@ -26,6 +27,8 @@ public struct Triangle
         p[1] = b;
         p[2] = c;
     }
+
+    public Color Color;
 }
 
 public struct Mat4

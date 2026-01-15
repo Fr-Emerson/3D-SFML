@@ -11,6 +11,7 @@ public class Render : RenderWindow
 {
     public Mesh Cube;
     public Mat4 Projection;
+    private Vector3 _cameraPosition = new Vector3();
     
     #region ||-- Overrides --||
     public Render(VideoMode mode, string title) : base(mode, title)
@@ -59,7 +60,7 @@ public class Render : RenderWindow
         InitializeCube();
         float fNear = 0.1f;
         float fFar = 1000f;
-        float fFov = 90f;
+        float fFov = 60f;
         float fAspectRatio = (float)Size.Y / (float)Size.X;
         float fFovRad = 1f / (float)Math.Tan(fFov * 0.5f / 180f * 3.14159f);
         Projection = new Mat4();
@@ -140,27 +141,73 @@ public class Render : RenderWindow
             triRotatedZx.p[1] = MultiplyMatrixVector(triRotatedZ.p[1], ref matRotX);
             triRotatedZx.p[2] = MultiplyMatrixVector(triRotatedZ.p[2], ref matRotX);
             
-            Triangle translated = new Triangle();
+            Triangle translated = new Triangle() ;
             translated.p[0] = new Vector3(triRotatedZx.p[0].X, triRotatedZx.p[0].Y, triRotatedZx.p[0].Z + 3.0f);
             translated.p[1] = new Vector3(triRotatedZx.p[1].X, triRotatedZx.p[1].Y, triRotatedZx.p[1].Z + 3.0f);
             translated.p[2] = new Vector3(triRotatedZx.p[2].X, triRotatedZx.p[2].Y, triRotatedZx.p[2].Z + 3.0f);
+
+            Vector3 normal = new Vector3();
+            Vector3 line1 = new Vector3();
+            Vector3 line2 = new Vector3();
             
-            projected.p[0] = MultiplyMatrixVector(translated.p[0], ref Projection);
-            projected.p[1] = MultiplyMatrixVector(translated.p[1], ref Projection);
-            projected.p[2] = MultiplyMatrixVector(translated.p[2], ref Projection);
+            line1.X = translated.p[1].X  - translated.p[0].X;
+            line1.Y = translated.p[1].Y  - translated.p[0].Y;
+            line1.Z = translated.p[1].Z  - translated.p[0].Z;
+            
+            line2.X = translated.p[2].X  - translated.p[0].X;
+            line2.Y = translated.p[2].Y  - translated.p[0].Y;
+            line2.Z = translated.p[2].Z  - translated.p[0].Z;
+            
+            normal.X = line1.Y * line2.Z - line1.Z * line2.Y;
+            normal.Y = line1.Z * line2.X - line1.X * line2.Z;
+            normal.Z = line1.X * line2.Y - line1.Y * line2.X;
+            
+            float l = MathF.Sqrt(normal.X*normal.X + normal.Y*normal.Y + normal.Z*normal.Z);
+            normal.X /= l;
+            normal.Y /= l;
+            normal.Z /= l;
+            if (
+                normal.X *(translated.p[0].X - _cameraPosition.X) + 
+                normal.Y *(translated.p[0].Y - _cameraPosition.Y) +
+                normal.Z *(translated.p[0].Z - _cameraPosition.Z) < 0
+                
+                )
+            {
+
+                Vector3 lightDirection = new Vector3(0.0f, 0.0f, -1.0f);
+                l = MathF.Sqrt(lightDirection.X*lightDirection.X + lightDirection.Y*lightDirection.Y + lightDirection.Z*lightDirection.Z);
+
+                lightDirection.X /= l;
+                lightDirection.Y /= l;
+                lightDirection.Z /= l;
+
+                float dp = normal.X * lightDirection.X + normal.Y * lightDirection.Y + normal.Z * lightDirection.Z;
+                Color baseColor = Color.Blue;
+
+                projected.Color = new Color(
+                    (byte)(baseColor.R * dp),
+                    (byte)(baseColor.G * dp),
+                    (byte)(baseColor.B * dp)
+                );
+                projected.p[0] = MultiplyMatrixVector(translated.p[0], ref Projection);
+                projected.p[1] = MultiplyMatrixVector(translated.p[1], ref Projection);
+                projected.p[2] = MultiplyMatrixVector(translated.p[2], ref Projection);
+                
+                DrawTriangle(projected);
+            }
         
-            DrawTriangle(projected);
         }
     
         Display();
         return true;
     }
 
+    
     private void DrawTriangle(Triangle tri)
     {
         float offsetX = Size.X / 2f;
         float offsetY = Size.Y / 2f;
-        float scale = 300f;
+        float scale = 250f;
     
         Vector2f p0 = new Vector2f(
             tri.p[0].X * scale + offsetX, 
@@ -179,8 +226,8 @@ public class Render : RenderWindow
         triangle.SetPoint(0, p0);
         triangle.SetPoint(1, p1);
         triangle.SetPoint(2, p2);
-        triangle.FillColor = Color.Transparent;
-        triangle.OutlineColor = Color.White;
+        triangle.FillColor = tri.Color;
+        triangle.OutlineColor = Color.Transparent;
         triangle.OutlineThickness = 1.5f;
     
         Draw(triangle);
