@@ -4,12 +4,12 @@ using _3D_SFML.models;
 using SFML.Window;
 using SFML.Graphics;
 using SFML.System;
-
 namespace _3D_SFML;
-
+using System.IO;
+using System.Linq;
 public class Render : RenderWindow
 {
-    public Mesh Cube;
+    public Mesh Mesh = new Mesh( new List<Triangle>() );
     public Mat4 Projection;
     private Vector3 _cameraPosition = new Vector3();
     
@@ -57,7 +57,12 @@ public class Render : RenderWindow
 
     public bool OnCreate()
     {
-        InitializeCube();
+        string objPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "src", "Flashlight.obj");
+        if (!Mesh.LoadFromObjectFile(objPath))
+        {
+            Console.WriteLine("Erro ao carregar, gerando cubo");
+            Mesh = GenerateCube();
+        }
         float fNear = 0.1f;
         float fFar = 1000f;
         float fFov = 60f;
@@ -107,7 +112,7 @@ public class Render : RenderWindow
 
         Mat4 matRotZ = new Mat4();
         Mat4 matRotX = new Mat4();
-        fTheta += 0.0008f ;
+        fTheta += 0.0025f ;
 
         
         // Rotacionar eixo Z
@@ -125,10 +130,12 @@ public class Render : RenderWindow
         matRotX.m[2][1] = -MathF.Sin(fTheta*0.5f);
         matRotX.m[2][2] = MathF.Cos(fTheta*0.5f);
         matRotX.m[3][3] = 1f;
-    
-        for (int i = 0; i < Cube.Triangles.Count; i++)
+
+        List<Triangle> vecTrianglesToRaster = new();
+        
+        for (int i = 0; i < Mesh.Triangles.Count; i++)
         {
-            Triangle tri = Cube.Triangles[i];
+            Triangle tri = Mesh.Triangles[i];
             Triangle projected = new Triangle();
             Triangle triRotatedZ = new Triangle();
             Triangle triRotatedZx = new Triangle();
@@ -142,9 +149,9 @@ public class Render : RenderWindow
             triRotatedZx.p[2] = MultiplyMatrixVector(triRotatedZ.p[2], ref matRotX);
             
             Triangle translated = new Triangle() ;
-            translated.p[0] = new Vector3(triRotatedZx.p[0].X, triRotatedZx.p[0].Y, triRotatedZx.p[0].Z + 3.0f);
-            translated.p[1] = new Vector3(triRotatedZx.p[1].X, triRotatedZx.p[1].Y, triRotatedZx.p[1].Z + 3.0f);
-            translated.p[2] = new Vector3(triRotatedZx.p[2].X, triRotatedZx.p[2].Y, triRotatedZx.p[2].Z + 3.0f);
+            translated.p[0] = new Vector3(triRotatedZx.p[0].X, triRotatedZx.p[0].Y, triRotatedZx.p[0].Z + 20.0f);
+            translated.p[1] = new Vector3(triRotatedZx.p[1].X, triRotatedZx.p[1].Y, triRotatedZx.p[1].Z + 20.0f);
+            translated.p[2] = new Vector3(triRotatedZx.p[2].X, triRotatedZx.p[2].Y, triRotatedZx.p[2].Z + 20.0f);
 
             Vector3 normal = new Vector3();
             Vector3 line1 = new Vector3();
@@ -181,21 +188,35 @@ public class Render : RenderWindow
                 lightDirection.Y /= l;
                 lightDirection.Z /= l;
 
-                float dp = normal.X * lightDirection.X + normal.Y * lightDirection.Y + normal.Z * lightDirection.Z;
-                Color baseColor = Color.Blue;
-
+                // float dp = normal.X * lightDirection.X + normal.Y * lightDirection.Y + normal.Z * lightDirection.Z;
+                // Color baseColor = Color.Blue;
+                //Usando normal como cor
                 projected.Color = new Color(
-                    (byte)(baseColor.R * dp),
-                    (byte)(baseColor.G * dp),
-                    (byte)(baseColor.B * dp)
+                    (byte)((normal.X + 1.0f) * 127.5f),
+                    (byte)((normal.Y + 1.0f) * 127.5f),
+                    (byte)((normal.Z + 1.0f) * 127.5f)
                 );
                 projected.p[0] = MultiplyMatrixVector(translated.p[0], ref Projection);
                 projected.p[1] = MultiplyMatrixVector(translated.p[1], ref Projection);
                 projected.p[2] = MultiplyMatrixVector(translated.p[2], ref Projection);
+
+                vecTrianglesToRaster.Add(projected);
                 
-                DrawTriangle(projected);
             }
         
+        }
+
+        vecTrianglesToRaster.Sort((a, b) =>
+        {
+            float z1 = (a.p[0].Z + a.p[1].Z + a.p[2].Z) / 3.0f;
+            float z2 = (b.p[0].Z + b.p[1].Z + b.p[2].Z) / 3.0f;
+            return z2.CompareTo(z1);
+        });
+        
+        
+        foreach (var triangle in vecTrianglesToRaster)
+        {
+            DrawTriangle(triangle);
         }
     
         Display();
@@ -233,9 +254,9 @@ public class Render : RenderWindow
         Draw(triangle);
     }
 
-    public void InitializeCube()
+    public Mesh GenerateCube()
     {
-        Cube = new Mesh(new List<Triangle>
+        Mesh cube = new Mesh(new List<Triangle>
         {
             // SOUTH
             new Triangle(
@@ -309,5 +330,6 @@ public class Render : RenderWindow
                 new Vector3(1,0,0)
             ),
         });
+        return cube;
     }
 }

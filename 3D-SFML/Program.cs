@@ -1,6 +1,4 @@
-﻿using System;
-using SFML.Window;
-using SFML.Graphics;
+﻿using SFML.Window;
 namespace _3D_SFML;
 
 public class Program
